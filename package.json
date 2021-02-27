@@ -1,0 +1,22 @@
+{
+  "name": "stock_bot",
+  "version": "1.0.0",
+  "description": "Get notified when items are restocked",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rdey0/3070-restock-alert.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rdey0/3070-restock-alert/issues"
+  },
+  "homepage": "https://github.com/rdey0/3070-restock-alert#readme",
+  "dependencies": {
+    "puppeteer": "^8.0.0"
+  }
+}
