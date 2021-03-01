@@ -62,7 +62,10 @@ class RestockBot {
         if(restockedProducts.length > 0)
             this.sendNotification(restockedProducts);
         else if(this.verboseMode)
-            console.log('No products have been restocked\n');
+            console.log('Nothing to report\n');
+        
+        if(this.verboseMode)
+            console.log('Waiting... \n');
     }
 
     async getUpdates(product) {
@@ -114,15 +117,19 @@ class RestockBot {
 
     neweggProductRestocked(product, document) {
         const stockStatusNodes = document.getElementsByClassName('product-flag');
+        const prevInStock = product.inStock;
         if(stockStatusNodes.length > 0){
             const stockStatus = stockStatusNodes[0].textContent.trim().toLowerCase();
             const isInStock = (stockStatus != 'out of stock');
-            const prevInStock = product.inStock;
             product.inStock = isInStock;
-            // Only classify a product as restocked if it was not in stock before and is now in stock
-            return (isInStock && !prevInStock)
+            // Only classify a product as restocked if it is now in stock and wasn't in stock before
+            return (isInStock && !prevInStock);
+        }else{
+            // Assume that if the page has no product flag, then the item is in stock
+            product.inStock = true;
+            // Classify a product as restocked if it wasn't in stock before
+            return (!prevInStock);
         }
-        return false;
     }
 
 
