@@ -1,5 +1,3 @@
-# Restock-Bot
-
 <div width='100%'>
     <pre  align='center' color='rgb(206,121,87)' >
 ________            _____            ______        ________      _____ 
