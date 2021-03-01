@@ -50,7 +50,6 @@ class RestockBot {
             if(res.status == 'fulfilled' && res.value)
                 restockedProducts.push(res.value);
         }
-        console.log(restockedProducts);
         return restockedProducts;
     }
 
@@ -99,4 +98,4 @@ class RestockBot {
     }
     //document.querySelector('div[class="product-flag"]').innerText
 }
-module.exports = {bot: RestockBot};
+module.exports = RestockBot;
