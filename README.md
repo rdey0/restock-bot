@@ -1,5 +1,7 @@
 # Restock-Bot
 
+<img width="100%" src='./src/assets/readme-logo.PNG'></img>
+
 ## Description
 
 A simple bot which will notify you via email when online products are back in stock. Currently only Newegg is supported.
