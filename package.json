@@ -18,8 +18,8 @@
   },
   "homepage": "https://github.com/rdey0/3070-restock-alert#readme",
   "dependencies": {
-    "cheerio": "^1.0.0-rc.5",
     "dom-parser": "^0.1.6",
+    "nodemailer": "^6.5.0",
     "puppeteer": "^8.0.0"
   }
 }

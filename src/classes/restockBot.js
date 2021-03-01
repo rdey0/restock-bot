@@ -1,27 +1,32 @@
 const puppeteer = require('puppeteer');
-const $ = require('cheerio');
+const nodemailer = require('nodemailer');
 const DomParser = require('dom-parser');
 const domains = require('../enums/domains');
-
+const logo = require('../assets/logo');
 class RestockBot {
     isNewegg = new RegExp('^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]newegg+)\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$');
     
-    static async init(urls) {
-        const bot = new RestockBot(urls);
+    static async load(urls, verbose, email, password) {
+        const bot = new RestockBot(urls, verbose, email, password);
         await bot.startup();
         return bot;
     }
 
-    constructor(urls){
+    constructor(urls, verbose, email, password){
+        this.verboseMode = verbose;
         this.urls = urls;
+        this.email = email;
+        this.password = password;
         this.products = {};
         this.inStock = {};
     }
 
     async startup() {
+        console.log(logo);
         this.browser = await puppeteer.launch();
+        if(this.verboseMode)
+            console.log('Loading product pages to scrape...\n')
         await Promise.allSettled(this.urls.map(url => this.addPage(url)));
-        // console.log(this.products);
     }
 
     async addPage(url) {
@@ -43,14 +48,21 @@ class RestockBot {
         return false;
     }
 
-    async checkStock() {
+    async checkRestock() {
+        if(this.verboseMode)
+            console.log('Checking status of products...\n'); 
         var productStatuses = await Promise.allSettled(Object.entries(this.products).map(([url, product]) => this.getUpdates(product)));
+
         var restockedProducts = [];
         for(let res of productStatuses){
             if(res.status == 'fulfilled' && res.value)
-                restockedProducts.push(res.value);
+                restockedProducts.push(this.products[res.value]);
         }
-        return restockedProducts;
+
+        if(restockedProducts.length > 0)
+            this.sendNotification(restockedProducts);
+        else if(this.verboseMode)
+            console.log('No products have been restocked\n');
     }
 
     async getUpdates(product) {
@@ -75,6 +87,31 @@ class RestockBot {
         
     }
 
+    async sendNotification(products) {
+        var htmlContent = '<div>The following products are now in stock!</div><br/>';
+        for(let product of products) 
+            htmlContent += `<div><a href=\"${product.url}\">${product.url}</a></div><br/>`;        
+        htmlContent += '<div>- Restock Bot</div>';
+
+        var transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: this.email,
+                pass: this.password
+            }
+        });
+
+        let info = await transporter.sendMail({
+            from:`"Restock Bot" <${this.email}>`,
+            to: this.email,
+            subject: 'Products have been restocked!',
+            html: htmlContent
+        });
+
+        if(this.verboseMode)
+            console.log(`Restock detected! Product links sent to ${this.email}\n`);
+    }
+
     neweggProductRestocked(product, document) {
         const stockStatusNodes = document.getElementsByClassName('product-flag');
         if(stockStatusNodes.length > 0){
@@ -88,6 +125,7 @@ class RestockBot {
         return false;
     }
 
+
     bestbuyProductRestocked(product, document) {
         //TODO
         return false;
@@ -96,6 +134,5 @@ class RestockBot {
     isValidUrl(url) {
         return this.isNewegg.test(url);
     }
-    //document.querySelector('div[class="product-flag"]').innerText
 }
 module.exports = RestockBot;

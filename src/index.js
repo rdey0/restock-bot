@@ -2,11 +2,10 @@ const puppeteer = require('puppeteer');
 const configData = require('../config');
 const RestockBot = require('./classes/restockBot')
 
-
-RestockBot.init(configData.urls)
+RestockBot.load(configData.urls, configData.verbose, configData.email, configData.password)
     .then(bot => {
+        bot.checkRestock();
         setInterval(async() => {
-            let restockedProducts = await bot.checkStock();
-            console.log(restockedProducts);
+            bot.checkRestock();
         }, configData.interval * 1000)
     })
