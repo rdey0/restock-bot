@@ -15,3 +15,4 @@ A simple bot which will notify you via email when online products are back in st
 2. Run `npm install`
 3. Run `npm start`
 
+#### Note: You may need to enable less secure apps on your google account to use this bot
