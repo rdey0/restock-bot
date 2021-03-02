@@ -1,10 +1,13 @@
 const puppeteer = require('puppeteer');
 const nodemailer = require('nodemailer');
 const DomParser = require('dom-parser');
+const Product = require('./product');
 const domains = require('../enums/domains');
 const logo = require('../assets/logo');
+
 class RestockBot {
     isNewegg = new RegExp('^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]newegg+)\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$');
+    isBestbuy = new RegExp('^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]bestbuy+)\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$');
     
     static async load(urls, verbose, email, password) {
         const bot = new RestockBot(urls, verbose, email, password);
@@ -18,7 +21,6 @@ class RestockBot {
         this.email = email;
         this.password = password;
         this.products = {};
-        this.inStock = {};
     }
 
     async startup() {
@@ -27,25 +29,21 @@ class RestockBot {
         if(this.verboseMode)
             console.log('Loading product pages to scrape...\n')
         await Promise.allSettled(this.urls.map(url => this.addPage(url)));
+        console.log('Restock-Bot is up and running\n');
     }
 
     async addPage(url) {
         if(this.isValidUrl(url)){
             var page = await this.browser.newPage();
             await page.goto(url);
-            this.inStock[url] = false;
-
+            var html = await page.evaluate(() => document.body.innerHTML);
+            const parser = new DomParser();
+            var document = parser.parseFromString(html);
             if(this.isNewegg.test(url))
-                this.products[url] = {
-                    'url': url,
-                    'page': page,
-                    'domain': domains.NEWEGG,
-                    'inStock': false
-                };
-            
-            return true;
+                this.products[url] = new Product(this.neweggGetName(document), url, page, domains.NEWEGG);
+            else if(this.isBestbuy.test(url))
+                this.products[url] = new Product(this.bestbuyGetName(document), url, page, domains.BESTBUY);
         }
-        return false;
     }
 
     async checkRestock() {
@@ -60,7 +58,7 @@ class RestockBot {
         }
 
         if(restockedProducts.length > 0)
-            this.sendNotification(restockedProducts);
+            await this.sendNotification(restockedProducts);
         else if(this.verboseMode)
             console.log('Nothing to report\n');
         
@@ -71,29 +69,32 @@ class RestockBot {
     async getUpdates(product) {
         var page = product.page;
         await page.reload();
-        let html = await page.evaluate(() => document.body.innerHTML);
+        var html = await page.evaluate(() => document.body.innerHTML);
         const parser = new DomParser();
         var document = parser.parseFromString(html);
 
         switch(product.domain){
             case domains.NEWEGG:
+                product.name = this.neweggGetName(document);
                 if(this.neweggProductRestocked(product, document))
                     return product.url;
                 break;
             case domains.BESTBUY:
+                product.name = this.bestbuyGetName(document);
                 if(this.bestbuyProductRestocked(product, document))
                     return product.url;
                 break;
             default:
-                return false;
+                break;
         }
-        
+
+        return '';
     }
 
     async sendNotification(products) {
         var htmlContent = '<div>The following products are now in stock!</div><br/>';
         for(let product of products) 
-            htmlContent += `<div><a href=\"${product.url}\">${product.url}</a></div><br/>`;        
+            htmlContent += `<div><a href=\"${product.url}\">${product.name}</a></div><br/>`;        
         htmlContent += '<div>- Restock Bot</div>';
 
         var transporter = nodemailer.createTransport({
@@ -104,7 +105,7 @@ class RestockBot {
             }
         });
 
-        let info = await transporter.sendMail({
+        await transporter.sendMail({
             from:`"Restock Bot" <${this.email}>`,
             to: this.email,
             subject: 'Products have been restocked!',
@@ -132,10 +133,25 @@ class RestockBot {
         }
     }
 
+    neweggGetName(document) {
+        const elements = document.getElementsByClassName('product-title');
+        if(elements.length > 0) 
+            return elements[0].textContent;
+        return '';
+    }
 
     bestbuyProductRestocked(product, document) {
         //TODO
         return false;
+    }
+
+    bestbuyGetName(document) {
+        const elements = document.getElementsByClassName('sku-title');
+        if(elements.length > 0){
+            console.log(elements[0].textContent);
+            return elements[0].textContent;
+        } 
+        return '';
     }
 
     isValidUrl(url) {
